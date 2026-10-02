@@ -163,7 +163,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </h1>
 
               <p className="text-[14px] sm:text-[16px] text-[#E5DFD5] font-light max-w-lg leading-relaxed pt-1">
-                A study in coastal architecture, true bias drape, and indigenous Iseyin strip-loom cotton. Cut in limited seasonal editions.
+                Quiet tailoring, cut in Lagos. Limited pieces for the season.
               </p>
 
               <div className="pt-4 flex flex-wrap items-center gap-4">
@@ -195,7 +195,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           THE STUDIO PHILOSOPHY
         </p>
         <p className="font-editorial text-[26px] sm:text-[36px] font-light text-[#161514] leading-[1.3] tracking-tight">
-          &ldquo;We approach womenswear through pattern architecture and coastal materiality. Rather than relying on surface ornament, each silhouette explores the tension between indigenous strip-loom cotton and heavy bias-cut silk.&rdquo;
+          Clothes with a considered line, made in small runs for a life in motion.
         </p>
         <div className="pt-2 flex justify-center">
           <span className="w-12 h-[1px] bg-[#161514]/25" />

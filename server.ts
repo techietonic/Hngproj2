@@ -44,7 +44,7 @@ function extractBearerToken(req: Request): string | null {
   return null;
 }
 
-async function startServer() {
+export async function createApp() {
   const app = express();
   app.use(express.json({ limit: '2mb' }));
 
@@ -619,9 +619,13 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AYÉ STUDIO Lagos server running on http://0.0.0.0:${PORT}`);
-  });
+  return app;
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  createApp().then((app) => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`AYE STUDIO Lagos server running on http://0.0.0.0:${PORT}`);
+    });
+  });
+}
