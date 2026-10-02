@@ -1,0 +1,8 @@
+{
+  "name": "AYÉ Studio",
+  "description": "A refined, editorial e-commerce platform for a contemporary Nigerian womenswear label with full-stack transactional capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
