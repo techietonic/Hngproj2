@@ -122,12 +122,24 @@ CREATE TABLE IF NOT EXISTS public.newsletter_subscribers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Application sessions are opaque, randomly generated server-side tokens. They are
+-- stored here so authentication survives a server restart without exposing a
+-- Supabase service key to the browser.
+CREATE TABLE IF NOT EXISTS public.app_sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_app_sessions_user_id ON public.app_sessions(user_id);
+
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Public can view products" ON public.products FOR SELECT USING (true);
 CREATE POLICY "Public can view product variants" ON public.product_variants FOR SELECT USING (true);

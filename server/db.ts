@@ -127,6 +127,48 @@ class AyeStudioDatabase {
     };
   }
 
+  private async supabaseProducts(params: {
+    category?: string; search?: string; sort?: string; featured?: boolean; newArrivals?: boolean;
+  }): Promise<Product[]> {
+    let query = this.supabase!.from('products').select('*, product_variants(*)');
+    if (params.category && params.category !== 'All') query = query.eq('category', params.category);
+    if (params.featured) query = query.eq('is_featured', true);
+    if (params.newArrivals) query = query.eq('is_new_arrival', true);
+    if (params.sort === 'price-asc') query = query.order('price', { ascending: true });
+    else if (params.sort === 'price-desc') query = query.order('price', { ascending: false });
+    else if (params.sort === 'newest') query = query.order('created_at', { ascending: false });
+    else if (params.sort === 'name-asc') query = query.order('name');
+    else query = query.order('is_featured', { ascending: false });
+    let { data, error } = await query;
+    if (error) throw new Error(`Supabase products query failed: ${error.message}`);
+    if (!data?.length) {
+      const products = INITIAL_PRODUCTS.map(({ variants: _variants, ...product }) => product);
+      const variants = INITIAL_PRODUCTS.flatMap((product) => product.variants);
+      const { error: productsError } = await this.supabase!.from('products').upsert(products, { onConflict: 'id' });
+      if (productsError) throw new Error(`Supabase catalogue seed failed: ${productsError.message}`);
+      const { error: variantsError } = await this.supabase!.from('product_variants').upsert(variants, { onConflict: 'id' });
+      if (variantsError) throw new Error(`Supabase variant seed failed: ${variantsError.message}`);
+      ({ data, error } = await query);
+      if (error) throw new Error(`Supabase products query failed: ${error.message}`);
+    }
+    return ((data || []) as any[])
+      .map(({ product_variants, ...product }) => ({
+        ...product,
+        variants: product_variants || [],
+        total_inventory: (product_variants || []).reduce((total: number, variant: ProductVariant) => total + variant.inventory_quantity, 0),
+      }))
+      .filter((product) => {
+        if (!params.search?.trim()) return true;
+        const queryText = params.search.trim().toLowerCase();
+        return [product.name, product.subtitle, product.description, product.colour, product.category, product.composition]
+          .some((field) => String(field).toLowerCase().includes(queryText));
+      }) as Product[];
+  }
+
+  private sessionHash(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
   public async listProducts(params: {
     category?: string;
     search?: string;
@@ -134,6 +176,7 @@ class AyeStudioDatabase {
     featured?: boolean;
     newArrivals?: boolean;
   }): Promise<Product[]> {
+    if (this.supabase) return this.supabaseProducts(params);
     let list = this.state.products.map((p) => this.hydrateProduct(p));
 
     if (params.category && params.category !== 'All') {
@@ -187,6 +230,21 @@ class AyeStudioDatabase {
   }
 
   public async getProductBySlugOrId(slugOrId: string): Promise<Product | null> {
+    if (this.supabase) {
+      const { data, error } = await this.supabase
+        .from('products')
+        .select('*, product_variants(*)')
+        .or(`slug.eq.${slugOrId},id.eq.${slugOrId}`)
+        .maybeSingle();
+      if (error) throw new Error(`Supabase product query failed: ${error.message}`);
+      if (!data) return null;
+      const { product_variants, ...product } = data as any;
+      return {
+        ...product,
+        variants: product_variants || [],
+        total_inventory: (product_variants || []).reduce((total: number, variant: ProductVariant) => total + variant.inventory_quantity, 0),
+      } as Product;
+    }
     const found = this.state.products.find(
       (p) => p.slug === slugOrId || p.id === slugOrId
     );
@@ -195,6 +253,37 @@ class AyeStudioDatabase {
   }
 
   public async getCart(sessionId: string, userId?: string | null): Promise<CartItem[]> {
+    if (this.supabase) {
+      if (userId) {
+        const { error } = await this.supabase
+          .from('cart_items')
+          .update({ user_id: userId, updated_at: new Date().toISOString() })
+          .eq('session_id', sessionId)
+          .is('user_id', null);
+        if (error) throw new Error(`Supabase cart merge failed: ${error.message}`);
+      }
+      let query = this.supabase
+        .from('cart_items')
+        .select('*, products(*), product_variants(*)')
+        .eq('session_id', sessionId);
+      if (userId) query = this.supabase
+        .from('cart_items')
+        .select('*, products(*), product_variants(*)')
+        .or(`session_id.eq.${sessionId},user_id.eq.${userId}`);
+      const { data, error } = await query;
+      if (error) throw new Error(`Supabase cart query failed: ${error.message}`);
+      const seen = new Set<string>();
+      return ((data || []) as any[]).flatMap((row) => {
+        if (seen.has(row.id) || !row.products || !row.product_variants) return [];
+        seen.add(row.id);
+        return [{
+          id: row.id, session_id: row.session_id, user_id: row.user_id,
+          product_id: row.product_id, variant_id: row.variant_id, quantity: row.quantity,
+          product: { ...row.products, image: row.products.images?.[0] || '' },
+          variant: row.product_variants,
+        } as CartItem];
+      });
+    }
     if (userId) {
       const sessionItems = this.state.cart_items.filter(
         (ci) => ci.session_id === sessionId && !ci.user_id
@@ -255,6 +344,31 @@ class AyeStudioDatabase {
     quantityDelta?: number;
     exactQuantity?: number;
   }): Promise<{ cart: CartItem[]; error?: string }> {
+    if (this.supabase) {
+      const { data: variant, error: variantError } = await this.supabase
+        .from('product_variants').select('*, products(name)').eq('id', params.variantId).eq('product_id', params.productId).maybeSingle();
+      if (variantError) throw new Error(`Supabase variant query failed: ${variantError.message}`);
+      if (!variant) return { cart: await this.getCart(params.sessionId, params.userId), error: 'Selected garment variant was not found.' };
+      let itemQuery = this.supabase.from('cart_items').select('*').eq('session_id', params.sessionId).eq('variant_id', params.variantId);
+      if (params.userId) itemQuery = itemQuery.eq('user_id', params.userId);
+      const { data: existing, error: existingError } = await itemQuery.maybeSingle();
+      if (existingError) throw new Error(`Supabase cart query failed: ${existingError.message}`);
+      const targetQuantity = typeof params.exactQuantity === 'number'
+        ? params.exactQuantity : (existing?.quantity || 0) + (params.quantityDelta || 1);
+      if (targetQuantity > variant.inventory_quantity) {
+        return { cart: await this.getCart(params.sessionId, params.userId), error: `Only ${variant.inventory_quantity} piece${variant.inventory_quantity === 1 ? '' : 's'} available in size ${variant.size}.` };
+      }
+      if (targetQuantity <= 0) {
+        if (existing) await this.supabase.from('cart_items').delete().eq('id', existing.id);
+      } else if (existing) {
+        const { error } = await this.supabase.from('cart_items').update({ quantity: targetQuantity, updated_at: new Date().toISOString() }).eq('id', existing.id);
+        if (error) throw new Error(`Supabase cart update failed: ${error.message}`);
+      } else {
+        const { error } = await this.supabase.from('cart_items').insert({ session_id: params.sessionId, user_id: params.userId || null, product_id: params.productId, variant_id: params.variantId, quantity: targetQuantity });
+        if (error) throw new Error(`Supabase cart insert failed: ${error.message}`);
+      }
+      return { cart: await this.getCart(params.sessionId, params.userId) };
+    }
     const prod = this.state.products.find((p) => p.id === params.productId);
     const variant = this.state.product_variants.find(
       (v) => v.id === params.variantId && v.product_id === params.productId
@@ -320,6 +434,11 @@ class AyeStudioDatabase {
   }
 
   public async removeCartItem(sessionId: string, cartItemId: string, userId?: string | null): Promise<CartItem[]> {
+    if (this.supabase) {
+      const { error } = await this.supabase.from('cart_items').delete().eq('id', cartItemId).eq('session_id', sessionId);
+      if (error) throw new Error(`Supabase cart delete failed: ${error.message}`);
+      return this.getCart(sessionId, userId);
+    }
     this.state.cart_items = this.state.cart_items.filter(
       (ci) =>
         !(
@@ -332,6 +451,13 @@ class AyeStudioDatabase {
   }
 
   public async clearCart(sessionId: string, userId?: string | null): Promise<void> {
+    if (this.supabase) {
+      let query = this.supabase.from('cart_items').delete().eq('session_id', sessionId);
+      if (userId) query = this.supabase.from('cart_items').delete().or(`session_id.eq.${sessionId},user_id.eq.${userId}`);
+      const { error } = await query;
+      if (error) throw new Error(`Supabase cart clear failed: ${error.message}`);
+      return;
+    }
     this.state.cart_items = this.state.cart_items.filter(
       (ci) =>
         !(userId ? ci.user_id === userId || ci.session_id === sessionId : ci.session_id === sessionId)
@@ -345,6 +471,22 @@ class AyeStudioDatabase {
     name: string;
     avatar_url?: string;
   }): Promise<{ user: User; token: string }> {
+    if (this.supabase) {
+      const normalizedEmail = profile.email.trim().toLowerCase();
+      const now = new Date().toISOString();
+      const { data: savedUser, error } = await this.supabase.from('users').upsert({
+        google_id: profile.google_id, email: normalizedEmail, name: profile.name,
+        avatar_url: profile.avatar_url || null, updated_at: now,
+      }, { onConflict: 'email' }).select().single();
+      if (error || !savedUser) throw new Error(`Supabase user save failed: ${error?.message || 'No user returned'}`);
+      const token = `aye_sess_${crypto.randomBytes(32).toString('hex')}`;
+      const { error: sessionError } = await this.supabase.from('app_sessions').insert({
+        token_hash: this.sessionHash(token), user_id: savedUser.id,
+        expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+      });
+      if (sessionError) throw new Error(`Supabase session save failed: ${sessionError.message}`);
+      return { user: savedUser as User, token };
+    }
     const normalizedEmail = profile.email.trim().toLowerCase();
     let user = this.state.users.find(
       (u) => u.google_id === profile.google_id || u.email.toLowerCase() === normalizedEmail
@@ -377,23 +519,21 @@ class AyeStudioDatabase {
     this.state.sessions[token] = user.id;
     this.persist();
 
-    if (this.supabase) {
-      try {
-        await this.supabase.from('users').upsert({
-          id: user.id,
-          google_id: user.google_id,
-          email: user.email,
-          name: user.name,
-          avatar_url: user.avatar_url || null,
-        });
-      } catch {}
-    }
-
     return { user, token };
   }
 
   public async getUserByToken(token?: string | null): Promise<User | null> {
     if (!token) return null;
+    if (this.supabase) {
+      const { data, error } = await this.supabase
+        .from('app_sessions')
+        .select('users(*)')
+        .eq('token_hash', this.sessionHash(token))
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+      if (error) throw new Error(`Supabase session query failed: ${error.message}`);
+      return ((Array.isArray(data?.users) ? data.users[0] : data?.users) as unknown as User | null) || null;
+    }
     const userId = this.state.sessions[token];
     if (!userId) return null;
     return this.state.users.find((u) => u.id === userId) || null;
@@ -403,6 +543,14 @@ class AyeStudioDatabase {
     userId: string,
     updates: Partial<Pick<User, 'name' | 'phone' | 'default_address' | 'default_city' | 'default_state' | 'default_country'>>
   ): Promise<User | null> {
+    if (this.supabase) {
+      const cleanUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([, value]) => value !== undefined).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+      );
+      const { data, error } = await this.supabase.from('users').update({ ...cleanUpdates, updated_at: new Date().toISOString() }).eq('id', userId).select().maybeSingle();
+      if (error) throw new Error(`Supabase profile update failed: ${error.message}`);
+      return data as User | null;
+    }
     const user = this.state.users.find((u) => u.id === userId);
     if (!user) return null;
     if (updates.name !== undefined) user.name = updates.name.trim();
@@ -416,6 +564,11 @@ class AyeStudioDatabase {
   }
 
   public async revokeSession(token: string): Promise<void> {
+    if (this.supabase) {
+      const { error } = await this.supabase.from('app_sessions').delete().eq('token_hash', this.sessionHash(token));
+      if (error) throw new Error(`Supabase session delete failed: ${error.message}`);
+      return;
+    }
     delete this.state.sessions[token];
     this.persist();
   }
@@ -428,6 +581,45 @@ class AyeStudioDatabase {
     const cartItems = await this.getCart(params.sessionId, params.userId);
     if (cartItems.length === 0) {
       return { error: 'Your shopping bag is empty.' };
+    }
+
+    if (this.supabase) {
+      for (const item of cartItems) {
+        if (item.variant.inventory_quantity < item.quantity) {
+          return { error: `Only ${item.variant.inventory_quantity} unit(s) of ${item.product.name} (Size ${item.variant.size}) remain in stock.` };
+        }
+      }
+      const subtotal = cartItems.reduce((total, item) => total + item.product.price * item.quantity, 0);
+      const deliveryFee = params.payload.delivery_method === 'vi_ikoyi_courier' ? (subtotal >= 250000 ? 0 : 5000)
+        : params.payload.delivery_method === 'lagos_mainland' ? (subtotal >= 250000 ? 0 : 7500)
+        : params.payload.delivery_method === 'nigeria_dhl' ? 16500 : 65000;
+      const orderId = crypto.randomUUID();
+      const orderRecord = {
+        id: orderId, order_number: `AYE-${new Date().getFullYear().toString().slice(-2)}-${crypto.randomInt(100000, 1000000)}`,
+        user_id: params.userId || null, customer_name: params.payload.customer_name.trim(),
+        customer_email: params.payload.customer_email.trim().toLowerCase(), customer_phone: params.payload.customer_phone.trim(),
+        delivery_address: params.payload.delivery_address.trim(), city: params.payload.city.trim(), state: params.payload.state.trim(),
+        country: params.payload.country.trim() || 'Nigeria', delivery_method: params.payload.delivery_method,
+        delivery_notes: params.payload.delivery_notes?.trim() || '', subtotal, delivery_fee: deliveryFee, total: subtotal + deliveryFee,
+        status: 'Confirmed', mailgun_status: 'queued', created_at: new Date().toISOString(),
+      };
+      const orderItems = cartItems.map((item) => ({
+        id: crypto.randomUUID(), order_id: orderId, product_id: item.product_id, variant_id: item.variant_id,
+        product_name: item.product.name, product_slug: item.product.slug, product_image: item.product.image,
+        size: item.variant.size, colour: item.variant.colour, sku: item.variant.sku,
+        unit_price: item.product.price, quantity: item.quantity, line_total: item.product.price * item.quantity,
+      }));
+      const { error: orderError } = await this.supabase.from('orders').insert(orderRecord);
+      if (orderError) throw new Error(`Supabase order save failed: ${orderError.message}`);
+      const { error: itemError } = await this.supabase.from('order_items').insert(orderItems);
+      if (itemError) throw new Error(`Supabase order item save failed: ${itemError.message}`);
+      for (const item of cartItems) {
+        const { error } = await this.supabase.from('product_variants')
+          .update({ inventory_quantity: item.variant.inventory_quantity - item.quantity }).eq('id', item.variant_id).eq('inventory_quantity', item.variant.inventory_quantity);
+        if (error) throw new Error(`Supabase inventory update failed: ${error.message}`);
+      }
+      await this.clearCart(params.sessionId, params.userId);
+      return { order: { ...orderRecord, items: orderItems, email_log: null } as Order };
     }
 
     for (const item of cartItems) {
@@ -527,13 +719,6 @@ class AyeStudioDatabase {
     await this.clearCart(params.sessionId, params.userId);
     this.persist();
 
-    if (this.supabase) {
-      try {
-        await this.supabase.from('orders').insert(orderRecord);
-        await this.supabase.from('order_items').insert(orderItems);
-      } catch {}
-    }
-
     return {
       order: {
         ...orderRecord,
@@ -544,6 +729,15 @@ class AyeStudioDatabase {
   }
 
   public async recordEmailLog(log: EmailLog): Promise<void> {
+    if (this.supabase) {
+      const { error: logError } = await this.supabase.from('email_logs').insert(log);
+      if (logError) throw new Error(`Supabase email log save failed: ${logError.message}`);
+      const { error: orderError } = await this.supabase.from('orders').update({
+        mailgun_message_id: log.provider_message_id, mailgun_status: log.status,
+      }).eq('id', log.order_id);
+      if (orderError) throw new Error(`Supabase email status update failed: ${orderError.message}`);
+      return;
+    }
     this.state.email_logs.unshift(log);
     const ord = this.state.orders.find((o) => o.id === log.order_id);
     if (ord) {
@@ -554,6 +748,14 @@ class AyeStudioDatabase {
   }
 
   public async getOrderByNumberOrId(orderRef: string): Promise<Order | null> {
+    if (this.supabase) {
+      const { data, error } = await this.supabase.from('orders').select('*, order_items(*), email_logs(*)')
+        .or(`id.eq.${orderRef},order_number.eq.${orderRef}`).maybeSingle();
+      if (error) throw new Error(`Supabase order query failed: ${error.message}`);
+      if (!data) return null;
+      const { order_items, email_logs, ...order } = data as any;
+      return { ...order, items: order_items || [], email_log: email_logs?.[0] || null } as Order;
+    }
     const ord = this.state.orders.find(
       (o) => o.order_number.toLowerCase() === orderRef.toLowerCase() || o.id === orderRef
     );
@@ -568,6 +770,12 @@ class AyeStudioDatabase {
   }
 
   public async getOrdersForUser(user: User): Promise<Order[]> {
+    if (this.supabase) {
+      const { data, error } = await this.supabase.from('orders').select('*, order_items(*), email_logs(*)')
+        .or(`user_id.eq.${user.id},customer_email.eq.${user.email}`).order('created_at', { ascending: false });
+      if (error) throw new Error(`Supabase orders query failed: ${error.message}`);
+      return ((data || []) as any[]).map(({ order_items, email_logs, ...order }) => ({ ...order, items: order_items || [], email_log: email_logs?.[0] || null })) as Order[];
+    }
     const matching = this.state.orders.filter(
       (o) =>
         o.user_id === user.id ||
@@ -583,6 +791,11 @@ class AyeStudioDatabase {
 
   public async subscribeNewsletter(email: string): Promise<{ alreadySubscribed: boolean }> {
     const clean = email.trim().toLowerCase();
+    if (this.supabase) {
+      const { error } = await this.supabase.from('newsletter_subscribers').insert({ email: clean });
+      if (error && error.code !== '23505') throw new Error(`Supabase subscriber save failed: ${error.message}`);
+      return { alreadySubscribed: error?.code === '23505' };
+    }
     const exists = this.state.newsletter_subscribers.find((s) => s.email === clean);
     if (exists) {
       return { alreadySubscribed: true };

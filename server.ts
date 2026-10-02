@@ -11,6 +11,23 @@ import { CheckoutFormPayload } from './src/types/store.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
+function createOAuthState(): string {
+  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + 10 * 60 * 1000, nonce: crypto.randomUUID() })).toString('base64url');
+  const secret = process.env.GOOGLE_CLIENT_SECRET || 'development-only-oauth-state-secret';
+  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function isValidOAuthState(state: unknown): boolean {
+  if (typeof state !== 'string') return false;
+  const [payload, signature] = state.split('.');
+  if (!payload || !signature) return false;
+  const secret = process.env.GOOGLE_CLIENT_SECRET || 'development-only-oauth-state-secret';
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
+  try { return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')).exp > Date.now(); } catch { return false; }
+}
+
 function extractSessionId(req: Request): string {
   const headerSession = req.headers['x-aye-session'];
   if (typeof headerSession === 'string' && headerSession.trim().length > 0) {
@@ -195,7 +212,7 @@ async function startServer() {
   app.get('/api/auth/google/config', (_req: Request, res: Response) => {
     const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '';
     const hasLiveGoogleClient =
-      Boolean(clientId) && !clientId.includes('your-google-client-id');
+      Boolean(clientId) && !clientId.includes('your-google-client-id') && Boolean(process.env.GOOGLE_CLIENT_SECRET);
     res.json({
       configured: hasLiveGoogleClient,
       clientId: hasLiveGoogleClient ? clientId : null,
@@ -213,7 +230,7 @@ async function startServer() {
         : `${req.protocol}://${req.get('host')}`;
     const redirectUri = `${origin}/api/auth/google/callback`;
 
-    if (hasLiveGoogleClient) {
+    if (hasLiveGoogleClient && process.env.GOOGLE_CLIENT_SECRET) {
       const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
@@ -221,6 +238,7 @@ async function startServer() {
         scope: 'openid email profile',
         access_type: 'online',
         prompt: 'select_account',
+        state: createOAuthState(),
       });
       res.json({
         mode: 'google_cloud_oauth',
@@ -229,13 +247,12 @@ async function startServer() {
       return;
     }
 
-    res.json({
-      mode: 'interactive_oauth_window',
-      url: `${origin}/api/auth/google/chooser`,
-    });
+    res.status(503).json({ error: 'Google OAuth is not configured. Add Google Cloud client credentials first.' });
   });
 
   app.get('/api/auth/google/chooser', (_req: Request, res: Response) => {
+    res.status(410).type('text/plain').send('Demo account chooser removed. Configure Google Cloud OAuth to sign in.');
+    return;
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -339,8 +356,8 @@ async function startServer() {
           : `${req.protocol}://${req.get('host')}`;
       const redirectUri = `${origin}/api/auth/google/callback`;
 
-      if (!code || !clientId || !clientSecret) {
-        res.redirect('/api/auth/google/chooser');
+      if (!code || !clientId || !clientSecret || !isValidOAuthState(req.query.state)) {
+        res.status(400).send('Google sign-in could not be verified. Please try again.');
         return;
       }
 
@@ -357,7 +374,7 @@ async function startServer() {
       });
 
       if (!tokenRes.ok) {
-        res.redirect('/api/auth/google/chooser');
+        res.status(502).send('Google did not accept this sign-in request. Please try again.');
         return;
       }
 
@@ -371,7 +388,13 @@ async function startServer() {
         email?: string;
         name?: string;
         picture?: string;
+        verified_email?: boolean;
       };
+
+      if (!profileRes.ok || !profile.id || !profile.email || profile.verified_email === false) {
+        res.status(502).send('Google did not return a verified account profile.');
+        return;
+      }
 
       const authData = await db.upsertGoogleUser({
         google_id: profile.id || `google_${crypto.randomUUID()}`,
@@ -389,7 +412,7 @@ async function startServer() {
         }
       </script></body></html>`);
     } catch {
-      res.redirect('/api/auth/google/chooser');
+      res.status(500).send('Google sign-in could not be completed. Please try again.');
     }
   });
 
@@ -413,7 +436,14 @@ async function startServer() {
             email: string;
             name?: string;
             picture?: string;
+            aud?: string;
+            email_verified?: string;
           };
+          const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '';
+          if (!clientId || tokenInfo.aud !== clientId || tokenInfo.email_verified !== 'true') {
+            res.status(401).json({ error: 'Google credential validation failed.' });
+            return;
+          }
           const result = await db.upsertGoogleUser({
             google_id: tokenInfo.sub,
             email: tokenInfo.email,
@@ -425,19 +455,7 @@ async function startServer() {
         }
       }
 
-      if (!email || !name) {
-        res.status(400).json({ error: 'Valid Google account email and name are required.' });
-        return;
-      }
-
-      const result = await db.upsertGoogleUser({
-        google_id: google_id || `google_${email.toLowerCase()}`,
-        email,
-        name,
-        avatar_url,
-      });
-
-      res.json(result);
+      res.status(400).json({ error: 'A verified Google credential is required.' });
     } catch {
       res.status(500).json({ error: 'Authentication verification failed.' });
     }
