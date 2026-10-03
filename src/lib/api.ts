@@ -6,6 +6,7 @@ import {
   EmailLog,
   CheckoutFormPayload,
 } from '../types/store';
+import { INITIAL_PRODUCTS } from '../../server/catalogueSeed';
 
 const SESSION_STORAGE_KEY = 'aye_studio_session_id';
 const AUTH_TOKEN_KEY = 'aye_studio_auth_token';
@@ -48,6 +49,29 @@ export function formatNaira(amount: number): string {
   return `₦${amount.toLocaleString('en-NG')}`;
 }
 
+function fallbackProducts(params?: {
+  category?: string;
+  q?: string;
+  sort?: string;
+  featured?: boolean;
+  newArrivals?: boolean;
+}): Product[] {
+  let products = [...INITIAL_PRODUCTS];
+  if (params?.category && params.category !== 'All') products = products.filter((product) => product.category.toLowerCase() === params.category!.toLowerCase());
+  if (params?.featured) products = products.filter((product) => product.is_featured);
+  if (params?.newArrivals) products = products.filter((product) => product.is_new_arrival);
+  if (params?.q?.trim()) {
+    const query = params.q.trim().toLowerCase();
+    products = products.filter((product) => [product.name, product.subtitle, product.description, product.colour, product.category, product.composition].some((field) => field.toLowerCase().includes(query)));
+  }
+  if (params?.sort === 'price-asc') products.sort((a, b) => a.price - b.price);
+  else if (params?.sort === 'price-desc') products.sort((a, b) => b.price - a.price);
+  else if (params?.sort === 'newest') products.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  else if (params?.sort === 'name-asc') products.sort((a, b) => a.name.localeCompare(b.name));
+  else products.sort((a, b) => Number(b.is_featured) - Number(a.is_featured));
+  return products;
+}
+
 export const api = {
   async fetchProducts(params?: {
     category?: string;
@@ -64,25 +88,30 @@ export const api = {
     if (params?.newArrivals) query.set('newArrivals', 'true');
 
     const qs = query.toString();
-    const res = await fetch(`/api/products${qs ? `?${qs}` : ''}`, {
-      headers: buildHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error('Failed to load catalogue from server.');
+    try {
+      const res = await fetch(`/api/products${qs ? `?${qs}` : ''}`, { headers: buildHeaders() });
+      if (!res.ok) throw new Error(`Catalogue request returned ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data.products)) throw new Error('Catalogue response was invalid');
+      return data.products;
+    } catch {
+      return fallbackProducts(params);
     }
-    const data = await res.json();
-    return data.products;
   },
 
   async fetchProductDetail(slugOrId: string): Promise<{ product: Product; related: Product[] }> {
-    const res = await fetch(`/api/products/${encodeURIComponent(slugOrId)}`, {
-      headers: buildHeaders(),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Product not found.');
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(slugOrId)}`, { headers: buildHeaders() });
+      if (!res.ok) throw new Error('Product request failed');
+      return res.json();
+    } catch {
+      const product = INITIAL_PRODUCTS.find((item) => item.slug === slugOrId || item.id === slugOrId);
+      if (!product) throw new Error('Product not found.');
+      return {
+        product,
+        related: INITIAL_PRODUCTS.filter((item) => item.id !== product.id && (item.category === product.category || item.is_featured)).slice(0, 3),
+      };
     }
-    return res.json();
   },
 
   async fetchCart(): Promise<CartItem[]> {

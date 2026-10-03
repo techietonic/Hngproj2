@@ -219,10 +219,10 @@ export const ShopView: React.FC<ShopViewProps> = ({
       {loading ? (
         <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-7 gap-y-12">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="space-y-3">
-              <div className="aspect-[3/4] bg-[#EAE5DC] animate-pulse" />
-              <div className="h-5 w-2/3 bg-[#EAE5DC] animate-pulse" />
-              <div className="h-4 w-1/3 bg-[#EAE5DC] animate-pulse" />
+              <div key={i} className="space-y-3">
+              <div className="aspect-[3/4] studio-skeleton" />
+              <div className="h-5 w-2/3 studio-skeleton" />
+              <div className="h-4 w-1/3 studio-skeleton" />
             </div>
           ))}
         </div>
@@ -258,12 +258,10 @@ export const ShopView: React.FC<ShopViewProps> = ({
         </div>
       ) : (
         <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-7 gap-y-12">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onSelect={onSelectProduct}
-            />
+          {products.map((product, index) => (
+            <div key={product.id} className="studio-reveal" style={{ animationDelay: `${Math.min(index * 55, 440)}ms` }}>
+              <ProductCard product={product} onSelect={onSelectProduct} />
+            </div>
           ))}
         </div>
       )}
