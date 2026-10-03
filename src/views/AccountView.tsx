@@ -86,7 +86,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
             Sign in to your AYÉ STUDIO account
           </h1>
           <p className="text-[14px] text-[#3E3027] leading-relaxed">
-            Access your order ledger, inspect Mailgun dispatch confirmations, and manage your saved Lagos delivery preferences using Google authentication.
+            Access your order history and keep your delivery preferences ready for the next piece, securely linked to your Google account.
           </p>
 
           <div className="pt-2">
@@ -124,13 +124,14 @@ export const AccountView: React.FC<AccountViewProps> = ({
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12">
-      <div className="pb-8 border-b border-[#161514]/15 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-16 studio-reveal">
+      <div className="relative overflow-hidden bg-[#EFECE5] border border-[#161514]/15 px-6 sm:px-10 py-8 sm:py-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+        <div aria-hidden="true" className="absolute right-0 top-0 h-full w-24 border-l border-[#161514]/10 opacity-70" />
         <div>
           <p className="text-[11px] font-mono-num uppercase tracking-[0.2em] text-[#5A4638]">
-            AUTHENTICATED GOOGLE ACCOUNT &nbsp;·&nbsp; {user.email}
+            PRIVATE CLIENT ARCHIVE
           </p>
-          <h1 className="font-editorial text-[38px] sm:text-[46px] font-normal text-[#161514] leading-none mt-2">
+          <h1 className="relative font-editorial text-[38px] sm:text-[46px] font-normal text-[#161514] leading-none mt-2">
             {user.name}
           </h1>
         </div>
@@ -138,7 +139,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
         <button
           type="button"
           onClick={onLogout}
-          className="self-start sm:self-auto inline-flex items-center gap-2 px-5 py-2.5 border border-[#161514]/30 text-[11px] uppercase tracking-[0.16em] text-[#161514] hover:bg-[#161514] hover:text-[#F7F5F0] transition-colors cursor-pointer"
+          className="relative self-start sm:self-auto inline-flex items-center gap-2 px-5 py-2.5 border border-[#161514]/30 text-[11px] uppercase tracking-[0.16em] text-[#161514] hover:bg-[#161514] hover:text-[#F7F5F0] transition-colors cursor-pointer"
         >
           <LogOut className="w-3.5 h-3.5" />
           <span>Sign Out</span>
@@ -152,7 +153,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
               Order History ({orders.length})
             </h2>
             <span className="text-[11px] font-mono-num uppercase tracking-[0.14em] text-[#5A4638]">
-              Synced with Studio Database
+              YOUR COLLECTION HISTORY
             </span>
           </div>
 
@@ -172,7 +173,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
                 No orders recorded yet.
               </p>
               <p className="text-[13px] text-[#5A4638] max-w-sm mx-auto">
-                Orders placed under {user.email} will appear here along with their Mailgun confirmation receipts.
+                Your confirmed pieces will appear here, with delivery details and order totals kept in one quiet archive.
               </p>
             </div>
           ) : (
@@ -278,8 +279,8 @@ export const AccountView: React.FC<AccountViewProps> = ({
                           <Mail className="w-3.5 h-3.5" />
                           <span>
                             {emailExpanded
-                              ? 'Hide Mailgun Confirmation'
-                              : 'View Mailgun Confirmation'}
+                              ? 'Hide Confirmation'
+                              : 'View Confirmation'}
                           </span>
                         </button>
                       )}

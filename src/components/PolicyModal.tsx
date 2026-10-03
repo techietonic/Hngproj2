@@ -20,7 +20,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ policy, onClose }) => 
         },
         {
           heading: 'Nationwide Nigeria & International DHL Express',
-          body: 'Domestic deliveries outside Lagos ship via DHL Express (2–4 business days, ₦16,500). International parcels ship via DHL Express Air Waybill (4–7 business days, ₦65,000) with full tracking sent via Mailgun confirmation.',
+          body: 'Domestic deliveries outside Lagos ship via DHL Express (2–4 business days, ₦16,500). International parcels ship via DHL Express Air Waybill (4–7 business days, ₦65,000) with full tracking sent in your confirmation email.',
         },
         {
           heading: 'Returns & Exchanges',
@@ -52,7 +52,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ policy, onClose }) => 
       sections: [
         {
           heading: 'Client Records & Order Data',
-          body: 'AYÉ STUDIO collects only the contact and delivery details necessary to fulfil your order, send transactional Mailgun dispatch confirmations, and maintain your client archive.',
+          body: 'AYÉ STUDIO collects only the contact and delivery details necessary to fulfil your order, send dispatch updates, and maintain your private client archive.',
         },
         {
           heading: 'Google OAuth Authentication',

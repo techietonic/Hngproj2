@@ -90,7 +90,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       !form.customer_email.trim() ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customer_email.trim())
     ) {
-      errs.customer_email = 'Please enter a valid email address for Mailgun confirmation.';
+      errs.customer_email = 'Please enter a valid email address for order updates.';
     }
     if (
       !form.customer_phone.trim() ||
@@ -206,7 +206,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 01. Client Information
               </h2>
               <span className="text-[11px] font-mono-num uppercase tracking-[0.12em] text-[#5A4638]">
-                Required for Mailgun Dispatch
+                Used for order updates
               </span>
             </div>
 
@@ -580,7 +580,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           </div>
 
           <div className="p-4 bg-[#EFECE5] border-l-2 border-[#161514] text-[12px] text-[#3E3027] leading-relaxed">
-            Upon confirming your order, your pieces are reserved in our database and a transactional confirmation email with studio dispatch instructions is sent immediately via Mailgun to <strong>{form.customer_email || 'your email'}</strong>.
+            Your pieces are reserved securely and a confirmation with dispatch details will be sent to your email address.
           </div>
 
           <button
@@ -589,7 +589,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             className="w-full py-4 px-6 bg-[#161514] text-[#F7F5F0] text-[12px] tracking-[0.2em] uppercase hover:bg-[#3E3027] disabled:opacity-50 transition-colors cursor-pointer shadow-md"
           >
             {submitting
-              ? 'Recording Order & Sending Mailgun Confirmation...'
+              ? 'Confirming Order...'
               : `Confirm Order — ${formatNaira(total)}`}
           </button>
         </div>
