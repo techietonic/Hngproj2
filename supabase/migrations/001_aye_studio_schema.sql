@@ -1,7 +1,9 @@
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Supabase exposes gen_random_uuid through pgcrypto. It works on managed
+-- projects where the uuid-ossp extension is not installed or permitted.
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS public.users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   google_id TEXT UNIQUE,
   email TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
@@ -49,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
 CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON public.product_variants(product_id);
 
 CREATE TABLE IF NOT EXISTS public.orders (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_number TEXT UNIQUE NOT NULL,
   user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
   customer_name TEXT NOT NULL,
@@ -74,7 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_email ON public.orders(customer_email);
 
 CREATE TABLE IF NOT EXISTS public.order_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   product_id TEXT NOT NULL REFERENCES public.products(id),
   variant_id TEXT NOT NULL REFERENCES public.product_variants(id),
@@ -92,7 +94,7 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
 
 CREATE TABLE IF NOT EXISTS public.cart_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id TEXT NOT NULL,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
@@ -103,7 +105,7 @@ CREATE TABLE IF NOT EXISTS public.cart_items (
 );
 
 CREATE TABLE IF NOT EXISTS public.email_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   order_number TEXT NOT NULL,
   recipient_email TEXT NOT NULL,
@@ -117,7 +119,7 @@ CREATE TABLE IF NOT EXISTS public.email_logs (
 );
 
 CREATE TABLE IF NOT EXISTS public.newsletter_subscribers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
