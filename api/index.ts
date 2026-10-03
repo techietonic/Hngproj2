@@ -1,11 +1,12 @@
-import type { Request, Response } from 'express';
-import { createApp } from '../server';
+// A Vercel function must never start the local Vite development server. Set
+// production before importing the app so the module is safe even when a
+// preview environment has not supplied NODE_ENV explicitly.
+process.env.NODE_ENV = 'production';
+const { createApp } = await import('../server.js');
 
-// Vercel invokes this function for every /api/* request.  The Express app is
-// created once per warm serverless instance and never calls app.listen().
-const appPromise = createApp();
+// Export the Express instance itself. Vercel's Node runtime recognizes this
+// as a serverless Express app and forwards the original request path to it.
+// Creating it once also avoids rebuilding the database client on every call.
+const app = await createApp();
 
-export default async function handler(req: Request, res: Response) {
-  const app = await appPromise;
-  return app(req, res);
-}
+export default app;

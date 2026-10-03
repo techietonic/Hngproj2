@@ -5,6 +5,19 @@ import { User } from '../types/store';
 
 interface GoogleAuthModalProps { isOpen: boolean; onClose: () => void; onSuccess: (user: User) => void; }
 
+async function readAuthResponse(response: Response): Promise<{ url?: string; error?: string }> {
+  const body = await response.text();
+  try {
+    return JSON.parse(body) as { url?: string; error?: string };
+  } catch {
+    throw new Error(
+      response.ok
+        ? 'Google sign-in returned an invalid response. Please try again.'
+        : `Google sign-in is temporarily unavailable (${response.status}). Please try again.`
+    );
+  }
+}
+
 export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +27,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
     setLoading(true); setError(null);
     try {
       const response = await fetch('/api/auth/google/url');
-      const data = await response.json();
+      const data = await readAuthResponse(response);
       if (!response.ok || !data.url) throw new Error(data.error || 'Google sign-in is not configured.');
       const popup = window.open(data.url, 'aye_google_oauth', 'width=520,height=680,noopener=no');
       if (!popup) throw new Error('Your browser blocked the Google sign-in window. Please allow pop-ups and try again.');

@@ -3,7 +3,6 @@ import fs from 'fs';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import crypto from 'crypto';
-import { createServer as createViteServer } from 'vite';
 import { db } from './server/db.js';
 import { sendMailgunOrderConfirmation } from './server/mailgunService.js';
 import { renderEditorialPhotoSvg, renderLookbookPlateSvg } from './server/lookbookRenderer.js';
@@ -49,6 +48,24 @@ export async function createApp() {
   // Vercel terminates TLS before forwarding requests to this function. Trusting
   // that proxy preserves https in the OAuth redirect URI when APP_URL is unset.
   app.set('trust proxy', 1);
+
+  // Vercel rewrites /api/* to the single api/index function. Preserve the
+  // original endpoint path carried in the rewrite query before Express starts
+  // matching routes (e.g. /api/cart or /api/auth/google/url).
+  app.use((req: Request, _res: Response, next) => {
+    const routePath = typeof req.query.path === 'string' ? req.query.path : '';
+    if (routePath && (req.path === '/api/index' || req.path === '/api')) {
+      const query = new URLSearchParams();
+      for (const [key, value] of Object.entries(req.query)) {
+        if (key === 'path') continue;
+        if (Array.isArray(value)) value.forEach((item) => query.append(key, String(item)));
+        else if (value !== undefined) query.set(key, String(value));
+      }
+      req.url = `/api/${routePath.replace(/^\/+/, '')}${query.toString() ? `?${query}` : ''}`;
+      (req as Request & { _parsedUrl?: unknown })._parsedUrl = undefined;
+    }
+    next();
+  });
   app.use(express.json({ limit: '2mb' }));
 
   app.use(
@@ -589,7 +606,16 @@ export async function createApp() {
     });
   });
 
+  // Never let an API typo fall through to the SPA HTML document. The client
+  // can then render a useful error instead of trying to parse HTML as JSON.
+  app.use('/api', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'API route not found.' });
+  });
+
   if (process.env.NODE_ENV !== 'production') {
+    // Keep Vite out of the production/serverless dependency path. The API
+    // function only needs Express and the database service at runtime.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
@@ -625,7 +651,7 @@ export async function createApp() {
   return app;
 }
 
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
   createApp().then((app) => {
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`AYE STUDIO Lagos server running on http://0.0.0.0:${PORT}`);

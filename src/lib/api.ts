@@ -114,7 +114,7 @@ export const api = {
     try {
       const res = await fetch(`/api/products/${encodeURIComponent(slugOrId)}`, { headers: buildHeaders() });
       if (!res.ok) throw new Error('Product request failed');
-      return res.json();
+      return readJson<{ product: Product; related: Product[] }>(res);
     } catch {
       const product = INITIAL_PRODUCTS.find((item) => item.slug === slugOrId || item.id === slugOrId);
       if (!product) throw new Error('Product not found.');
@@ -254,7 +254,7 @@ export const api = {
     if (!res.ok) {
       throw new Error('Please sign in to view your order history.');
     }
-    const data = await res.json();
+    const data = await readJson<{ orders: Order[] }>(res);
     return data.orders;
   },
 
@@ -262,7 +262,7 @@ export const api = {
     const res = await fetch(`/api/orders/${encodeURIComponent(orderRef)}`, {
       headers: buildHeaders(),
     });
-    const data = await res.json();
+    const data = await readJson<{ order: Order; error?: string }>(res);
     if (!res.ok) {
       throw new Error(data.error || 'Order not found.');
     }
@@ -275,7 +275,7 @@ export const api = {
       headers: buildHeaders(),
       body: JSON.stringify({ email }),
     });
-    const data = await res.json();
+    const data = await readJson<{ message: string; error?: string }>(res);
     if (!res.ok) {
       throw new Error(data.error || 'Subscription failed.');
     }

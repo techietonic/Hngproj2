@@ -51,6 +51,15 @@ function isValidSupabaseConfig(): boolean {
 class AyeStudioDatabase {
   private state!: PersistedState;
   private supabase: SupabaseClient | null = null;
+  // A deployment can have valid Supabase credentials before its migration has
+  // been applied. Once a remote query fails, use the seeded local state for
+  // the rest of this warm instance instead of breaking cart and checkout.
+  private supabaseUnavailable = false;
+
+  private disableSupabase(context: string, error: unknown) {
+    this.supabaseUnavailable = true;
+    console.error(`Supabase ${context} unavailable; using local fallback:`, error);
+  }
 
   constructor() {
     if (isValidSupabaseConfig()) {
@@ -187,10 +196,9 @@ class AyeStudioDatabase {
       try {
         return await this.supabaseProducts(params);
       } catch (error) {
-        // Keep the catalogue browseable while an uninitialised remote project is
-        // being migrated. Writes still fail loudly instead of pretending to be
-        // persisted remotely.
-        console.error('Supabase catalogue unavailable:', error);
+        // Keep the catalogue browseable while an uninitialised remote project
+        // is being migrated; cart and checkout will use the same local seed.
+        this.disableSupabase('catalogue', error);
       }
     }
     let list = this.state.products.map((p) => this.hydrateProduct(p));
@@ -264,7 +272,7 @@ class AyeStudioDatabase {
         }
         return null;
       } catch (error) {
-        console.error('Supabase product unavailable:', error);
+        this.disableSupabase('product', error);
       }
     }
     const found = this.state.products.find(
@@ -275,36 +283,40 @@ class AyeStudioDatabase {
   }
 
   public async getCart(sessionId: string, userId?: string | null): Promise<CartItem[]> {
-    if (this.supabase) {
-      if (userId) {
-        const { error } = await this.supabase
+    if (this.supabase && !this.supabaseUnavailable) {
+      try {
+        if (userId) {
+          const { error } = await this.supabase
+            .from('cart_items')
+            .update({ user_id: userId, updated_at: new Date().toISOString() })
+            .eq('session_id', sessionId)
+            .is('user_id', null);
+          if (error) throw new Error(`Supabase cart merge failed: ${error.message}`);
+        }
+        let query = this.supabase
           .from('cart_items')
-          .update({ user_id: userId, updated_at: new Date().toISOString() })
-          .eq('session_id', sessionId)
-          .is('user_id', null);
-        if (error) throw new Error(`Supabase cart merge failed: ${error.message}`);
+          .select('*, products(*), product_variants(*)')
+          .eq('session_id', sessionId);
+        if (userId) query = this.supabase
+          .from('cart_items')
+          .select('*, products(*), product_variants(*)')
+          .or(`session_id.eq.${sessionId},user_id.eq.${userId}`);
+        const { data, error } = await query;
+        if (error) throw new Error(`Supabase cart query failed: ${error.message}`);
+        const seen = new Set<string>();
+        return ((data || []) as any[]).flatMap((row) => {
+          if (seen.has(row.id) || !row.products || !row.product_variants) return [];
+          seen.add(row.id);
+          return [{
+            id: row.id, session_id: row.session_id, user_id: row.user_id,
+            product_id: row.product_id, variant_id: row.variant_id, quantity: row.quantity,
+            product: { ...row.products, image: row.products.images?.[0] || '' },
+            variant: row.product_variants,
+          } as CartItem];
+        });
+      } catch (error) {
+        this.disableSupabase('cart', error);
       }
-      let query = this.supabase
-        .from('cart_items')
-        .select('*, products(*), product_variants(*)')
-        .eq('session_id', sessionId);
-      if (userId) query = this.supabase
-        .from('cart_items')
-        .select('*, products(*), product_variants(*)')
-        .or(`session_id.eq.${sessionId},user_id.eq.${userId}`);
-      const { data, error } = await query;
-      if (error) throw new Error(`Supabase cart query failed: ${error.message}`);
-      const seen = new Set<string>();
-      return ((data || []) as any[]).flatMap((row) => {
-        if (seen.has(row.id) || !row.products || !row.product_variants) return [];
-        seen.add(row.id);
-        return [{
-          id: row.id, session_id: row.session_id, user_id: row.user_id,
-          product_id: row.product_id, variant_id: row.variant_id, quantity: row.quantity,
-          product: { ...row.products, image: row.products.images?.[0] || '' },
-          variant: row.product_variants,
-        } as CartItem];
-      });
     }
     if (userId) {
       const sessionItems = this.state.cart_items.filter(
@@ -366,30 +378,34 @@ class AyeStudioDatabase {
     quantityDelta?: number;
     exactQuantity?: number;
   }): Promise<{ cart: CartItem[]; error?: string }> {
-    if (this.supabase) {
-      const { data: variant, error: variantError } = await this.supabase
-        .from('product_variants').select('*, products(name)').eq('id', params.variantId).eq('product_id', params.productId).maybeSingle();
-      if (variantError) throw new Error(`Supabase variant query failed: ${variantError.message}`);
-      if (!variant) return { cart: await this.getCart(params.sessionId, params.userId), error: 'Selected garment variant was not found.' };
-      let itemQuery = this.supabase.from('cart_items').select('*').eq('session_id', params.sessionId).eq('variant_id', params.variantId);
-      if (params.userId) itemQuery = itemQuery.eq('user_id', params.userId);
-      const { data: existing, error: existingError } = await itemQuery.maybeSingle();
-      if (existingError) throw new Error(`Supabase cart query failed: ${existingError.message}`);
-      const targetQuantity = typeof params.exactQuantity === 'number'
-        ? params.exactQuantity : (existing?.quantity || 0) + (params.quantityDelta || 1);
-      if (targetQuantity > variant.inventory_quantity) {
-        return { cart: await this.getCart(params.sessionId, params.userId), error: `Only ${variant.inventory_quantity} piece${variant.inventory_quantity === 1 ? '' : 's'} available in size ${variant.size}.` };
+    if (this.supabase && !this.supabaseUnavailable) {
+      try {
+        const { data: variant, error: variantError } = await this.supabase
+          .from('product_variants').select('*, products(name)').eq('id', params.variantId).eq('product_id', params.productId).maybeSingle();
+        if (variantError) throw new Error(`Supabase variant query failed: ${variantError.message}`);
+        if (!variant) return { cart: await this.getCart(params.sessionId, params.userId), error: 'Selected garment variant was not found.' };
+        let itemQuery = this.supabase.from('cart_items').select('*').eq('session_id', params.sessionId).eq('variant_id', params.variantId);
+        if (params.userId) itemQuery = itemQuery.eq('user_id', params.userId);
+        const { data: existing, error: existingError } = await itemQuery.maybeSingle();
+        if (existingError) throw new Error(`Supabase cart query failed: ${existingError.message}`);
+        const targetQuantity = typeof params.exactQuantity === 'number'
+          ? params.exactQuantity : (existing?.quantity || 0) + (params.quantityDelta || 1);
+        if (targetQuantity > variant.inventory_quantity) {
+          return { cart: await this.getCart(params.sessionId, params.userId), error: `Only ${variant.inventory_quantity} piece${variant.inventory_quantity === 1 ? '' : 's'} available in size ${variant.size}.` };
+        }
+        if (targetQuantity <= 0) {
+          if (existing) await this.supabase.from('cart_items').delete().eq('id', existing.id);
+        } else if (existing) {
+          const { error } = await this.supabase.from('cart_items').update({ quantity: targetQuantity, updated_at: new Date().toISOString() }).eq('id', existing.id);
+          if (error) throw new Error(`Supabase cart update failed: ${error.message}`);
+        } else {
+          const { error } = await this.supabase.from('cart_items').insert({ session_id: params.sessionId, user_id: params.userId || null, product_id: params.productId, variant_id: params.variantId, quantity: targetQuantity });
+          if (error) throw new Error(`Supabase cart insert failed: ${error.message}`);
+        }
+        return { cart: await this.getCart(params.sessionId, params.userId) };
+      } catch (error) {
+        this.disableSupabase('cart write', error);
       }
-      if (targetQuantity <= 0) {
-        if (existing) await this.supabase.from('cart_items').delete().eq('id', existing.id);
-      } else if (existing) {
-        const { error } = await this.supabase.from('cart_items').update({ quantity: targetQuantity, updated_at: new Date().toISOString() }).eq('id', existing.id);
-        if (error) throw new Error(`Supabase cart update failed: ${error.message}`);
-      } else {
-        const { error } = await this.supabase.from('cart_items').insert({ session_id: params.sessionId, user_id: params.userId || null, product_id: params.productId, variant_id: params.variantId, quantity: targetQuantity });
-        if (error) throw new Error(`Supabase cart insert failed: ${error.message}`);
-      }
-      return { cart: await this.getCart(params.sessionId, params.userId) };
     }
     const prod = this.state.products.find((p) => p.id === params.productId);
     const variant = this.state.product_variants.find(
@@ -456,10 +472,14 @@ class AyeStudioDatabase {
   }
 
   public async removeCartItem(sessionId: string, cartItemId: string, userId?: string | null): Promise<CartItem[]> {
-    if (this.supabase) {
-      const { error } = await this.supabase.from('cart_items').delete().eq('id', cartItemId).eq('session_id', sessionId);
-      if (error) throw new Error(`Supabase cart delete failed: ${error.message}`);
-      return this.getCart(sessionId, userId);
+    if (this.supabase && !this.supabaseUnavailable) {
+      try {
+        const { error } = await this.supabase.from('cart_items').delete().eq('id', cartItemId).eq('session_id', sessionId);
+        if (error) throw new Error(`Supabase cart delete failed: ${error.message}`);
+        return this.getCart(sessionId, userId);
+      } catch (error) {
+        this.disableSupabase('cart delete', error);
+      }
     }
     this.state.cart_items = this.state.cart_items.filter(
       (ci) =>
@@ -473,12 +493,16 @@ class AyeStudioDatabase {
   }
 
   public async clearCart(sessionId: string, userId?: string | null): Promise<void> {
-    if (this.supabase) {
-      let query = this.supabase.from('cart_items').delete().eq('session_id', sessionId);
-      if (userId) query = this.supabase.from('cart_items').delete().or(`session_id.eq.${sessionId},user_id.eq.${userId}`);
-      const { error } = await query;
-      if (error) throw new Error(`Supabase cart clear failed: ${error.message}`);
-      return;
+    if (this.supabase && !this.supabaseUnavailable) {
+      try {
+        let query = this.supabase.from('cart_items').delete().eq('session_id', sessionId);
+        if (userId) query = this.supabase.from('cart_items').delete().or(`session_id.eq.${sessionId},user_id.eq.${userId}`);
+        const { error } = await query;
+        if (error) throw new Error(`Supabase cart clear failed: ${error.message}`);
+        return;
+      } catch (error) {
+        this.disableSupabase('cart clear', error);
+      }
     }
     this.state.cart_items = this.state.cart_items.filter(
       (ci) =>
@@ -493,21 +517,25 @@ class AyeStudioDatabase {
     name: string;
     avatar_url?: string;
   }): Promise<{ user: User; token: string }> {
-    if (this.supabase) {
-      const normalizedEmail = profile.email.trim().toLowerCase();
-      const now = new Date().toISOString();
-      const { data: savedUser, error } = await this.supabase.from('users').upsert({
-        google_id: profile.google_id, email: normalizedEmail, name: profile.name,
-        avatar_url: profile.avatar_url || null, updated_at: now,
-      }, { onConflict: 'email' }).select().single();
-      if (error || !savedUser) throw new Error(`Supabase user save failed: ${error?.message || 'No user returned'}`);
-      const token = `aye_sess_${crypto.randomBytes(32).toString('hex')}`;
-      const { error: sessionError } = await this.supabase.from('app_sessions').insert({
-        token_hash: this.sessionHash(token), user_id: savedUser.id,
-        expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
-      });
-      if (sessionError) throw new Error(`Supabase session save failed: ${sessionError.message}`);
-      return { user: savedUser as User, token };
+    if (this.supabase && !this.supabaseUnavailable) {
+      try {
+        const normalizedEmail = profile.email.trim().toLowerCase();
+        const now = new Date().toISOString();
+        const { data: savedUser, error } = await this.supabase.from('users').upsert({
+          google_id: profile.google_id, email: normalizedEmail, name: profile.name,
+          avatar_url: profile.avatar_url || null, updated_at: now,
+        }, { onConflict: 'email' }).select().single();
+        if (error || !savedUser) throw new Error(`Supabase user save failed: ${error?.message || 'No user returned'}`);
+        const token = `aye_sess_${crypto.randomBytes(32).toString('hex')}`;
+        const { error: sessionError } = await this.supabase.from('app_sessions').insert({
+          token_hash: this.sessionHash(token), user_id: savedUser.id,
+          expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+        });
+        if (sessionError) throw new Error(`Supabase session save failed: ${sessionError.message}`);
+        return { user: savedUser as User, token };
+      } catch (error) {
+        this.disableSupabase('authentication persistence', error);
+      }
     }
     const normalizedEmail = profile.email.trim().toLowerCase();
     let user = this.state.users.find(
@@ -546,15 +574,19 @@ class AyeStudioDatabase {
 
   public async getUserByToken(token?: string | null): Promise<User | null> {
     if (!token) return null;
-    if (this.supabase) {
-      const { data, error } = await this.supabase
-        .from('app_sessions')
-        .select('users(*)')
-        .eq('token_hash', this.sessionHash(token))
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
-      if (error) throw new Error(`Supabase session query failed: ${error.message}`);
-      return ((Array.isArray(data?.users) ? data.users[0] : data?.users) as unknown as User | null) || null;
+    if (this.supabase && !this.supabaseUnavailable) {
+      try {
+        const { data, error } = await this.supabase
+          .from('app_sessions')
+          .select('users(*)')
+          .eq('token_hash', this.sessionHash(token))
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
+        if (error) throw new Error(`Supabase session query failed: ${error.message}`);
+        return ((Array.isArray(data?.users) ? data.users[0] : data?.users) as unknown as User | null) || null;
+      } catch (error) {
+        this.disableSupabase('session lookup', error);
+      }
     }
     const userId = this.state.sessions[token];
     if (!userId) return null;
@@ -565,13 +597,17 @@ class AyeStudioDatabase {
     userId: string,
     updates: Partial<Pick<User, 'name' | 'phone' | 'default_address' | 'default_city' | 'default_state' | 'default_country'>>
   ): Promise<User | null> {
-    if (this.supabase) {
-      const cleanUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([, value]) => value !== undefined).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
-      );
-      const { data, error } = await this.supabase.from('users').update({ ...cleanUpdates, updated_at: new Date().toISOString() }).eq('id', userId).select().maybeSingle();
-      if (error) throw new Error(`Supabase profile update failed: ${error.message}`);
-      return data as User | null;
+    if (this.supabase && !this.supabaseUnavailable) {
+      try {
+        const cleanUpdates = Object.fromEntries(
+          Object.entries(updates).filter(([, value]) => value !== undefined).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+        );
+        const { data, error } = await this.supabase.from('users').update({ ...cleanUpdates, updated_at: new Date().toISOString() }).eq('id', userId).select().maybeSingle();
+        if (error) throw new Error(`Supabase profile update failed: ${error.message}`);
+        return data as User | null;
+      } catch (error) {
+        this.disableSupabase('profile update', error);
+      }
     }
     const user = this.state.users.find((u) => u.id === userId);
     if (!user) return null;
@@ -586,10 +622,14 @@ class AyeStudioDatabase {
   }
 
   public async revokeSession(token: string): Promise<void> {
-    if (this.supabase) {
-      const { error } = await this.supabase.from('app_sessions').delete().eq('token_hash', this.sessionHash(token));
-      if (error) throw new Error(`Supabase session delete failed: ${error.message}`);
-      return;
+    if (this.supabase && !this.supabaseUnavailable) {
+      try {
+        const { error } = await this.supabase.from('app_sessions').delete().eq('token_hash', this.sessionHash(token));
+        if (error) throw new Error(`Supabase session delete failed: ${error.message}`);
+        return;
+      } catch (error) {
+        this.disableSupabase('session delete', error);
+      }
     }
     delete this.state.sessions[token];
     this.persist();
