@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { createApp } from '../server.js';
+import { createApp } from '../server';
 
 // Vercel invokes this function for every /api/* request.  The Express app is
 // created once per warm serverless instance and never calls app.listen().

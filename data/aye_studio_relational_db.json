@@ -13,7 +13,7 @@
       "colour": "Raw Bone",
       "colour_hex": "#EAE4D8",
       "images": [
-        "/src/assets/images/product_nia_draped_top_1790917140380.jpg",
+        "/images/product_nia_draped_top_1790917140380.jpg",
         "/api/lookbook-plate/nia-draped-top/construction.svg",
         "/api/lookbook-plate/nia-draped-top/textile.svg"
       ],
@@ -37,7 +37,7 @@
       "colour": "Deep Espresso",
       "colour_hex": "#281E18",
       "images": [
-        "/src/assets/images/product_sade_column_dress_1790917152807.jpg",
+        "/images/product_sade_column_dress_1790917152807.jpg",
         "/api/lookbook-plate/sade-column-dress/construction.svg",
         "/api/lookbook-plate/sade-column-dress/textile.svg"
       ],
@@ -61,7 +61,7 @@
       "colour": "Warm Clay",
       "colour_hex": "#B8A38E",
       "images": [
-        "/src/assets/images/product_tolu_wide_trouser_1790917162690.jpg",
+        "/images/product_tolu_wide_trouser_1790917162690.jpg",
         "/api/lookbook-plate/tolu-wide-leg-trouser/construction.svg",
         "/api/lookbook-plate/tolu-wide-leg-trouser/textile.svg"
       ],
@@ -85,7 +85,7 @@
       "colour": "Roasted Umber",
       "colour_hex": "#3E291E",
       "images": [
-        "/src/assets/images/product_dara_structured_bag_1790917173757.jpg",
+        "/images/product_dara_structured_bag_1790917173757.jpg",
         "/api/lookbook-plate/dara-structured-bag/construction.svg",
         "/api/lookbook-plate/dara-structured-bag/textile.svg"
       ],

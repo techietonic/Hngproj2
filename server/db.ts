@@ -114,7 +114,14 @@ class AyeStudioDatabase {
   }
 
   private persist() {
-    fs.writeFileSync(DB_FILE, JSON.stringify(this.state, null, 2), 'utf8');
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(this.state, null, 2), 'utf8');
+    } catch (error) {
+      // Vercel bundles are read-only. The JSON file is only the local
+      // catalogue fallback; authenticated/order writes use Supabase above.
+      if (process.env.VERCEL) return;
+      throw error;
+    }
   }
 
   private hydrateProduct(prod: Omit<Product, 'variants'>): Product {
@@ -176,7 +183,16 @@ class AyeStudioDatabase {
     featured?: boolean;
     newArrivals?: boolean;
   }): Promise<Product[]> {
-    if (this.supabase) return this.supabaseProducts(params);
+    if (this.supabase) {
+      try {
+        return await this.supabaseProducts(params);
+      } catch (error) {
+        // Keep the catalogue browseable while an uninitialised remote project is
+        // being migrated. Writes still fail loudly instead of pretending to be
+        // persisted remotely.
+        console.error('Supabase catalogue unavailable:', error);
+      }
+    }
     let list = this.state.products.map((p) => this.hydrateProduct(p));
 
     if (params.category && params.category !== 'All') {
@@ -231,19 +247,25 @@ class AyeStudioDatabase {
 
   public async getProductBySlugOrId(slugOrId: string): Promise<Product | null> {
     if (this.supabase) {
-      const { data, error } = await this.supabase
-        .from('products')
-        .select('*, product_variants(*)')
-        .or(`slug.eq.${slugOrId},id.eq.${slugOrId}`)
-        .maybeSingle();
-      if (error) throw new Error(`Supabase product query failed: ${error.message}`);
-      if (!data) return null;
-      const { product_variants, ...product } = data as any;
-      return {
-        ...product,
-        variants: product_variants || [],
-        total_inventory: (product_variants || []).reduce((total: number, variant: ProductVariant) => total + variant.inventory_quantity, 0),
-      } as Product;
+      try {
+        const { data, error } = await this.supabase
+          .from('products')
+          .select('*, product_variants(*)')
+          .or(`slug.eq.${slugOrId},id.eq.${slugOrId}`)
+          .maybeSingle();
+        if (error) throw new Error(`Supabase product query failed: ${error.message}`);
+        if (data) {
+          const { product_variants, ...product } = data as any;
+          return {
+            ...product,
+            variants: product_variants || [],
+            total_inventory: (product_variants || []).reduce((total: number, variant: ProductVariant) => total + variant.inventory_quantity, 0),
+          } as Product;
+        }
+        return null;
+      } catch (error) {
+        console.error('Supabase product unavailable:', error);
+      }
     }
     const found = this.state.products.find(
       (p) => p.slug === slugOrId || p.id === slugOrId
