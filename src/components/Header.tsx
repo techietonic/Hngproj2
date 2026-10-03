@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Search, UserRound, ShoppingBag } from 'lucide-react';
 import { User } from '../types/store';
 
 interface HeaderProps {
@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-[#FBF9F5]/90 backdrop-blur-md transition-colors border-b border-[#161514]/[0.05]">
       {/* Editorial Single-Row Top Bar Contract */}
-      <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 py-4 sm:py-5 flex items-center justify-between">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-10 lg:px-16 py-3.5 sm:py-5 flex items-center justify-between gap-3">
         {/* Zone 1: Brand Wordmark & Mobile Trigger */}
         <div className="flex items-center gap-4 sm:gap-6">
           <button
@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
               e.preventDefault();
               onNavigate('home');
             }}
-            className="font-editorial text-[20px] sm:text-[23px] font-light tracking-[0.3em] uppercase text-[#161514] hover:opacity-75 transition-opacity whitespace-nowrap"
+            className="font-editorial text-[18px] sm:text-[23px] font-light tracking-[0.22em] sm:tracking-[0.3em] uppercase text-[#161514] hover:opacity-75 transition-opacity whitespace-nowrap"
           >
             AYÉ STUDIO
           </a>
@@ -95,33 +95,38 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
 
         {/* Zone 3: Editorial Action Controls */}
-        <div className="flex items-center gap-6 sm:gap-9 text-[11px] tracking-[0.24em] uppercase">
+        <div className="flex items-center gap-2 sm:gap-9 text-[11px] tracking-[0.24em] uppercase shrink-0">
           <button
             type="button"
             onClick={() => setSearchOpen(!searchOpen)}
-            className="text-[#7D7063] hover:text-[#161514] transition-colors cursor-pointer whitespace-nowrap"
+            aria-label="Search"
+            className="p-2 sm:p-0 text-[#7D7063] hover:text-[#161514] transition-colors cursor-pointer whitespace-nowrap"
           >
-            SEARCH
+            <Search className="w-4 h-4 sm:hidden" />
+            <span className="hidden sm:inline">SEARCH</span>
           </button>
 
           <button
             type="button"
             onClick={() => onNavigate('account')}
-            className={`transition-colors cursor-pointer whitespace-nowrap ${
+            aria-label={user ? 'Open account' : 'Sign in'}
+            className={`p-2 sm:p-0 transition-colors cursor-pointer whitespace-nowrap ${
               currentView === 'account'
                 ? 'text-[#161514] font-medium'
                 : 'text-[#7D7063] hover:text-[#161514]'
             }`}
           >
-            {user ? user.name.split(' ')[0].toUpperCase() : 'ACCOUNT'}
+            <UserRound className="w-4 h-4 sm:hidden" />
+            <span className="hidden sm:inline">{user ? user.name.split(' ')[0].toUpperCase() : 'ACCOUNT'}</span>
           </button>
 
           <button
             type="button"
             onClick={onOpenBag}
-            className="text-[#161514] hover:opacity-70 transition-opacity cursor-pointer font-medium whitespace-nowrap"
+            aria-label={`Open bag${cartCount ? `, ${cartCount} items` : ''}`}
+            className="p-2 sm:p-0 text-[#161514] hover:opacity-70 transition-opacity cursor-pointer font-medium whitespace-nowrap"
           >
-            BAG {cartCount > 0 ? `(${cartCount})` : ''}
+            <span className="inline-flex items-center gap-1"><ShoppingBag className="w-4 h-4 sm:hidden" /><span className="hidden sm:inline">BAG</span>{cartCount > 0 ? <span>({cartCount})</span> : null}</span>
           </button>
         </div>
       </div>

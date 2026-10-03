@@ -65,9 +65,9 @@ export const BagDrawer: React.FC<BagDrawerProps> = ({
 
       <aside
         aria-label="Shopping Bag"
-        className="relative z-10 w-full max-w-md bg-[#FAF8F5] h-full flex flex-col border-l border-[#161514]/15 shadow-2xl"
+        className="relative z-10 w-full sm:max-w-md bg-[#FAF8F5] h-[100dvh] flex flex-col border-l border-[#161514]/15 shadow-2xl"
       >
-        <div className="px-6 py-5 border-b border-[#161514]/12 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-[#161514]/12 flex items-center justify-between">
           <div>
             <h2 className="font-editorial text-[22px] tracking-[0.06em] text-[#161514]">
               Shopping Bag
@@ -94,12 +94,12 @@ export const BagDrawer: React.FC<BagDrawerProps> = ({
         </div>
 
         {errorMsg && (
-          <div className="px-6 py-3 bg-[#7C4D36]/10 border-b border-[#7C4D36]/30 text-[12px] text-[#7C4D36]">
+          <div className="px-4 sm:px-6 py-3 bg-[#7C4D36]/10 border-b border-[#7C4D36]/30 text-[12px] text-[#7C4D36]">
             {errorMsg}
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-6 divide-y divide-[#161514]/10">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 divide-y divide-[#161514]/10">
           {items.length === 0 ? (
             <div className="py-20 text-center space-y-4">
               <p className="font-editorial text-[22px] text-[#161514]">
@@ -122,14 +122,14 @@ export const BagDrawer: React.FC<BagDrawerProps> = ({
               const exceedsStock = item.quantity > item.variant.inventory_quantity;
 
               return (
-                <div key={item.id} className="py-5 flex gap-4">
+                <div key={item.id} className="py-4 sm:py-5 flex gap-3 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => {
                       onClose();
                       onSelectProduct(item.product.slug);
                     }}
-                    className="w-20 h-28 bg-[#EAE5DC] shrink-0 overflow-hidden border border-[#161514]/10"
+                    className="w-16 h-24 sm:w-20 sm:h-28 bg-[#EAE5DC] shrink-0 overflow-hidden border border-[#161514]/10"
                   >
                     <img
                       src={item.product.image}
@@ -218,7 +218,7 @@ export const BagDrawer: React.FC<BagDrawerProps> = ({
         </div>
 
         {items.length > 0 && (
-          <div className="p-6 border-t border-[#161514]/15 bg-[#F7F5F0] space-y-4">
+          <div className="p-4 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#161514]/15 bg-[#F7F5F0] space-y-4">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-[13px] text-[#5A4638]">
                 <span>Subtotal</span>

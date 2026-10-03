@@ -46,6 +46,9 @@ function extractBearerToken(req: Request): string | null {
 
 export async function createApp() {
   const app = express();
+  // Vercel terminates TLS before forwarding requests to this function. Trusting
+  // that proxy preserves https in the OAuth redirect URI when APP_URL is unset.
+  app.set('trust proxy', 1);
   app.use(express.json({ limit: '2mb' }));
 
   app.use(

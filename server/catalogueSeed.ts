@@ -1,12 +1,12 @@
 import { Product } from '../src/types/store.js';
 
-export const HERO_CAMPAIGN_IMAGE = '/src/assets/images/hero_campaign_aw26_1790917116291.jpg';
-export const EDITORIAL_ATELIER_IMAGE = '/src/assets/images/editorial_atelier_lagos_1790917127723.jpg';
+export const HERO_CAMPAIGN_IMAGE = '/images/hero_campaign_aw26_1790917116291.jpg';
+export const EDITORIAL_ATELIER_IMAGE = '/images/editorial_atelier_lagos_1790917127723.jpg';
 
-const IMG_NIA_TOP = '/src/assets/images/product_nia_draped_top_1790917140380.jpg';
-const IMG_SADE_DRESS = '/src/assets/images/product_sade_column_dress_1790917152807.jpg';
-const IMG_TOLU_TROUSER = '/src/assets/images/product_tolu_wide_trouser_1790917162690.jpg';
-const IMG_DARA_BAG = '/src/assets/images/product_dara_structured_bag_1790917173757.jpg';
+const IMG_NIA_TOP = '/images/product_nia_draped_top_1790917140380.jpg';
+const IMG_SADE_DRESS = '/images/product_sade_column_dress_1790917152807.jpg';
+const IMG_TOLU_TROUSER = '/images/product_tolu_wide_trouser_1790917162690.jpg';
+const IMG_DARA_BAG = '/images/product_dara_structured_bag_1790917173757.jpg';
 
 export const INITIAL_PRODUCTS: Product[] = [
   {

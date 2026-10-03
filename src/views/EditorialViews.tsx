@@ -2,8 +2,8 @@ import React from 'react';
 import { Product } from '../types/store';
 import { formatNaira } from '../lib/api';
 
-const ATELIER_IMAGE = '/src/assets/images/editorial_atelier_lagos_1790917127723.jpg';
-const HERO_IMAGE = '/src/assets/images/hero_campaign_aw26_1790917116291.jpg';
+const ATELIER_IMAGE = '/images/editorial_atelier_lagos_1790917127723.jpg';
+const HERO_IMAGE = '/images/hero_campaign_aw26_1790917116291.jpg';
 
 interface CollectionViewProps {
   products: Product[];

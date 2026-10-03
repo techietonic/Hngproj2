@@ -33,7 +33,7 @@ interface PhotoRecipe {
 
 const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
   'eko-poplin-shirt': {
-    basePhoto: '/src/assets/images/product_nia_draped_top_1790917140380.jpg',
+    basePhoto: '/images/product_nia_draped_top_1790917140380.jpg',
     viewBoxCrop: '45 30 810 1080',
     tintHex: '#F5F2EB',
     tintOpacity: 0.16,
@@ -44,7 +44,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 05 · SHIRTING',
   },
   'imani-bias-skirt': {
-    basePhoto: '/src/assets/images/product_sade_column_dress_1790917152807.jpg',
+    basePhoto: '/images/product_sade_column_dress_1790917152807.jpg',
     viewBoxCrop: '60 210 780 990',
     tintHex: '#423127',
     tintOpacity: 0.22,
@@ -55,7 +55,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 06 · BIAS SATIN',
   },
   'kemi-wrap-dress': {
-    basePhoto: '/src/assets/images/product_sade_column_dress_1790917152807.jpg',
+    basePhoto: '/images/product_sade_column_dress_1790917152807.jpg',
     viewBoxCrop: '30 40 840 1120',
     tintHex: '#9C5B34',
     tintOpacity: 0.34,
@@ -66,7 +66,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 07 · OCHRE LINEN',
   },
   'zainab-sculpted-blazer': {
-    basePhoto: '/src/assets/images/hero_campaign_aw26_1790917116291.jpg',
+    basePhoto: '/images/hero_campaign_aw26_1790917116291.jpg',
     viewBoxCrop: '280 20 680 900',
     tintHex: '#2B2927',
     tintOpacity: 0.28,
@@ -77,7 +77,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 08 · TAILORING',
   },
   'amina-loomed-overshirt': {
-    basePhoto: '/src/assets/images/editorial_atelier_lagos_1790917127723.jpg',
+    basePhoto: '/images/editorial_atelier_lagos_1790917127723.jpg',
     viewBoxCrop: '120 0 760 1013',
     tintHex: '#DFD7C8',
     tintOpacity: 0.14,
@@ -88,7 +88,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 09 · ISEYIN ASO-OKE',
   },
   'yemi-pleated-tunic': {
-    basePhoto: '/src/assets/images/product_nia_draped_top_1790917140380.jpg',
+    basePhoto: '/images/product_nia_draped_top_1790917140380.jpg',
     viewBoxCrop: '0 80 900 1120',
     tintHex: '#C5B8A5',
     tintOpacity: 0.28,
@@ -99,7 +99,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 10 · KNIFE PLEAT',
   },
   'bisi-architectural-trench': {
-    basePhoto: '/src/assets/images/hero_campaign_aw26_1790917116291.jpg',
+    basePhoto: '/images/hero_campaign_aw26_1790917116291.jpg',
     viewBoxCrop: '180 0 720 960',
     tintHex: '#C6BCA9',
     tintOpacity: 0.22,
@@ -110,7 +110,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 11 · GABARDINE COAT',
   },
   'amara-asymmetric-slip': {
-    basePhoto: '/src/assets/images/product_sade_column_dress_1790917152807.jpg',
+    basePhoto: '/images/product_sade_column_dress_1790917152807.jpg',
     viewBoxCrop: '75 90 750 1000',
     tintHex: '#8A482B',
     tintOpacity: 0.38,
@@ -121,7 +121,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 12 · SIENNA GEORGETTE',
   },
   'oluwa-tailored-culotte': {
-    basePhoto: '/src/assets/images/product_tolu_wide_trouser_1790917162690.jpg',
+    basePhoto: '/images/product_tolu_wide_trouser_1790917162690.jpg',
     viewBoxCrop: '50 140 800 1060',
     tintHex: '#1C1B1A',
     tintOpacity: 0.42,
@@ -132,7 +132,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
     plateCode: 'LOOK 13 · VIRGIN WOOL',
   },
   'femi-knot-crossbody': {
-    basePhoto: '/src/assets/images/product_dara_structured_bag_1790917173757.jpg',
+    basePhoto: '/images/product_dara_structured_bag_1790917173757.jpg',
     viewBoxCrop: '90 110 720 960',
     tintHex: '#1B1512',
     tintOpacity: 0.34,
@@ -147,7 +147,7 @@ const PHOTO_RECIPES: Record<string, PhotoRecipe> = {
 export function renderEditorialPhotoSvg(slug: string): string {
   const product = INITIAL_PRODUCTS.find((p) => p.slug === slug);
   const recipe = PHOTO_RECIPES[slug] || {
-    basePhoto: '/src/assets/images/product_nia_draped_top_1790917140380.jpg',
+    basePhoto: '/images/product_nia_draped_top_1790917140380.jpg',
     viewBoxCrop: '0 0 900 1200',
     tintHex: product?.colour_hex || '#EAE4D8',
     tintOpacity: 0.15,

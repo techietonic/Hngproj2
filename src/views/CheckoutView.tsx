@@ -158,7 +158,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12">
+    <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-12 pt-6 sm:pt-12 pb-8">
       <div className="pb-6 border-b border-[#161514]/15 flex items-center justify-between">
         <div>
           <button
@@ -191,7 +191,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="pt-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start"
+        className="pt-7 sm:pt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 items-start"
       >
         <div className="lg:col-span-7 space-y-10">
           {generalError && (
@@ -469,7 +469,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 return (
                   <label
                     key={option.id}
-                    className={`flex items-start justify-between gap-4 p-4 border cursor-pointer transition-colors ${
+                    className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 p-4 border cursor-pointer transition-colors ${
                       selected
                         ? 'bg-[#EFECE5] border-[#161514]'
                         : 'bg-[#FAF8F5] border-[#161514]/20 hover:border-[#161514]/50'
@@ -494,7 +494,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                         </div>
                       </div>
                     </div>
-                    <span className="font-mono-num text-[13px] text-[#161514] shrink-0">
+                    <span className="font-mono-num text-[13px] text-[#161514] shrink-0 pl-7 sm:pl-0">
                       {option.fee === 0 ? 'Complimentary' : formatNaira(option.fee)}
                     </span>
                   </label>
@@ -521,7 +521,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           </div>
         </div>
 
-        <div className="lg:col-span-5 lg:sticky lg:top-28 bg-[#FAF8F5] border border-[#161514]/20 p-6 sm:p-8 space-y-6 shadow-sm">
+        <div className="lg:col-span-5 lg:sticky lg:top-28 bg-[#FAF8F5] border border-[#161514]/20 p-5 sm:p-8 space-y-5 sm:space-y-6 shadow-sm">
           <div className="border-b border-[#161514]/15 pb-4">
             <p className="text-[11px] font-mono-num uppercase tracking-[0.16em] text-[#5A4638]">
               ORDER ARCHIVE SUMMARY
@@ -533,8 +533,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
           <div className="divide-y divide-[#161514]/10 max-h-96 overflow-y-auto pr-1">
             {cart.map((item) => (
-              <div key={item.id} className="py-4 flex gap-4">
-                <div className="w-16 h-22 bg-[#EAE5DC] shrink-0 border border-[#161514]/10 overflow-hidden">
+              <div key={item.id} className="py-4 flex gap-3 sm:gap-4">
+                <div className="w-14 h-20 sm:w-16 sm:h-24 bg-[#EAE5DC] shrink-0 border border-[#161514]/10 overflow-hidden">
                   <img
                     src={item.product.image}
                     alt={item.product.name}

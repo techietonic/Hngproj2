@@ -4,8 +4,8 @@ import { Product } from '../types/store';
 import { formatNaira } from '../lib/api';
 import { ProductCard } from '../components/ProductCard';
 
-const HERO_IMAGE = '/src/assets/images/hero_campaign_aw26_1790917116291.jpg';
-const ATELIER_IMAGE = '/src/assets/images/editorial_atelier_lagos_1790917127723.jpg';
+const HERO_IMAGE = '/images/hero_campaign_aw26_1790917116291.jpg';
+const ATELIER_IMAGE = '/images/editorial_atelier_lagos_1790917127723.jpg';
 
 interface HomeViewProps {
   products: Product[];
@@ -37,7 +37,7 @@ const LOOKBOOK_ITEMS: LookbookItem[] = [
     lookTitle: 'Look I — Asymmetric Bias & Pleat',
     season: 'Autumn / Winter',
     location: 'Studio Court, Victoria Island',
-    photo: '/src/assets/images/product_nia_draped_top_1790917140380.jpg',
+    photo: '/images/product_nia_draped_top_1790917140380.jpg',
     garmentsWorn: [
       { name: 'Nia Draped Top in Raw Bone Silk', slug: 'nia-draped-top', price: 165000, role: 'Blouse' },
       { name: 'Tolu Wide-Leg Trouser in Warm Clay', slug: 'tolu-wide-leg-trouser', price: 195000, role: 'Trouser' },
@@ -49,7 +49,7 @@ const LOOKBOOK_ITEMS: LookbookItem[] = [
     lookTitle: 'Look II — The Helical Column',
     season: 'Autumn / Winter',
     location: 'Akin Olugbade Atelier, Lagos',
-    photo: '/src/assets/images/product_sade_column_dress_1790917152807.jpg',
+    photo: '/images/product_sade_column_dress_1790917152807.jpg',
     garmentsWorn: [
       { name: 'Sade Column Dress in Espresso Crepe', slug: 'sade-column-dress', price: 285000, role: 'Dress' },
       { name: 'Dara Structured Saddle Bag', slug: 'dara-structured-bag', price: 240000, role: 'Leather Object' },
@@ -61,7 +61,7 @@ const LOOKBOOK_ITEMS: LookbookItem[] = [
     lookTitle: 'Look III — Tailored Volume & Travertine',
     season: 'Autumn / Winter',
     location: 'Victoria Island Gallery',
-    photo: '/src/assets/images/product_tolu_wide_trouser_1790917162690.jpg',
+    photo: '/images/product_tolu_wide_trouser_1790917162690.jpg',
     garmentsWorn: [
       { name: 'Tolu Wide-Leg Trouser', slug: 'tolu-wide-leg-trouser', price: 195000, role: 'Tailoring' },
       { name: 'Eko Poplin Shirt', slug: 'eko-poplin-shirt', price: 145000, role: 'Shirting' },
