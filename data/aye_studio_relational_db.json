@@ -837,7 +837,17 @@
       "inventory_quantity": 5
     }
   ],
-  "cart_items": [],
+  "cart_items": [
+    {
+      "id": "27d4acba-7f10-421a-8467-528dd9eca7b7",
+      "session_id": "e2e_b70ce23a625a49329ae500e40c2f4d4e",
+      "user_id": null,
+      "product_id": "prod_nia_draped_top",
+      "variant_id": "var_nia_xs",
+      "quantity": 1,
+      "updated_at": "2026-10-03T06:15:05.815Z"
+    }
+  ],
   "orders": [],
   "order_items": [],
   "email_logs": [],

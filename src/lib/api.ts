@@ -45,6 +45,17 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
   return headers;
 }
 
+async function readJson<T>(res: Response): Promise<T> {
+  const body = await res.text();
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    throw new Error(res.ok
+      ? 'The server returned an invalid response.'
+      : `The server is temporarily unavailable (${res.status}). Please try again.`);
+  }
+}
+
 export function formatNaira(amount: number): string {
   return `₦${amount.toLocaleString('en-NG')}`;
 }
@@ -119,7 +130,7 @@ export const api = {
       headers: buildHeaders(),
     });
     if (!res.ok) throw new Error('Unable to load shopping bag.');
-    const data = await res.json();
+    const data = await readJson<{ cart: CartItem[] }>(res);
     return data.cart;
   },
 
@@ -129,7 +140,7 @@ export const api = {
       headers: buildHeaders(),
       body: JSON.stringify({ productId, variantId, quantity }),
     });
-    const data = await res.json();
+    const data = await readJson<{ cart: CartItem[]; error?: string }>(res);
     if (!res.ok) {
       throw new Error(data.error || 'Could not add item to bag.');
     }
@@ -142,7 +153,7 @@ export const api = {
       headers: buildHeaders(),
       body: JSON.stringify({ productId, quantity }),
     });
-    const data = await res.json();
+    const data = await readJson<{ cart: CartItem[]; error?: string }>(res);
     if (!res.ok) {
       throw new Error(data.error || 'Could not update quantity.');
     }
@@ -154,7 +165,7 @@ export const api = {
       method: 'DELETE',
       headers: buildHeaders(),
     });
-    const data = await res.json();
+    const data = await readJson<{ cart: CartItem[]; error?: string }>(res);
     if (!res.ok) {
       throw new Error(data.error || 'Could not remove item.');
     }
@@ -171,7 +182,7 @@ export const api = {
       setAuthToken(null);
       return null;
     }
-    const data = await res.json();
+    const data = await readJson<{ user: User | null }>(res);
     return data.user;
   },
 
@@ -187,7 +198,7 @@ export const api = {
       headers: buildHeaders(),
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
+    const data = await readJson<{ user: User; token: string; error?: string }>(res);
     if (!res.ok) {
       throw new Error(data.error || 'Google authentication failed.');
     }
@@ -201,7 +212,7 @@ export const api = {
       headers: buildHeaders(),
       body: JSON.stringify(updates),
     });
-    const data = await res.json();
+    const data = await readJson<{ user: User; error?: string }>(res);
     if (!res.ok) {
       throw new Error(data.error || 'Could not update profile.');
     }
@@ -225,7 +236,7 @@ export const api = {
       headers: buildHeaders(),
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
+    const data = await readJson<{ order: Order; emailLog: EmailLog; error?: string; fieldErrors?: Record<string, string> }>(res);
     if (!res.ok) {
       const err = new Error(data.error || 'Order creation failed.') as Error & {
         fieldErrors?: Record<string, string>;
